@@ -1,59 +1,77 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Excel / CSV Import — Laravel Demo
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Phase 1 MVP for importing Excel and CSV files with manual column mapping, validation, and controlled commit. Built with Laravel 12, MySQL 8, and Docker.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Upload** — Excel (.xlsx, .xls) or CSV via drag-and-drop
+- **Column mapping** — Auto-detect headers and map to internal fields
+- **Validation** — Required fields, type checking, duplicate key detection
+- **Preview** — Summary and per-row errors before commit
+- **Controlled commit** — Period-based overwrite via Laravel queue job
+- **Staging pattern** — `import_batches` + `import_rows` tables before writing to target
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Requirements
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Docker & Docker Compose
 
-## Learning Laravel
+## Quick Start
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+# Clone and enter the project
+git clone https://github.com/openjkai/excel-import-demo.git
+cd excel-import-demo
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# Copy environment file
+cp .env.example .env
 
-## Laravel Sponsors
+# Start containers (PHP, Nginx, MySQL, Queue worker)
+docker compose up -d
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Generate app key and run migrations
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
 
-### Premium Partners
+# (Optional) Create sample Excel file for testing
+docker compose exec app php create_sample.php
+# Then copy to public: cp storage/app/sample_import.xlsx public/
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Open in browser
+# http://localhost:8090
+```
 
-## Contributing
+## Docker Services
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Service | Port | Description |
+|---------|------|-------------|
+| nginx   | 8090 | Web server |
+| app     | 9000 | PHP-FPM (internal) |
+| mysql   | 3307 | MySQL 8.0 (host port) |
+| queue   | —    | Laravel queue worker |
 
-## Code of Conduct
+## Flow
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. **Upload** → File stored in `storage/app/imports/`, headers parsed with [maatwebsite/excel](https://github.com/SpartnerNL/Laravel-Excel)
+2. **Map** → Select internal fields for each spreadsheet column, set import period
+3. **Validate** → Required fields, numeric/date types, composite-key duplicate check
+4. **Preview** → Valid / invalid / duplicate counts, error details per row
+5. **Commit** → `CommitImportJob` runs in queue: DELETE existing records in period, bulk INSERT valid rows
 
-## Security Vulnerabilities
+## Database Schema
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- `import_batches` — Batch metadata, column mapping, status, period, row counts
+- `import_rows` — Raw + mapped data per row, validation status, errors
+- `financial_records` — Target table (transaction_date, account_code, description, debit, credit, reference, department)
+
+## Tech Stack
+
+- Laravel 12
+- PHP 8.2
+- MySQL 8.0
+- maatwebsite/excel (PhpSpreadsheet)
+- Tailwind CSS + Alpine.js
+- Docker
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT
