@@ -74,4 +74,4 @@ docker compose exec app php create_sample.php
 
 ## License
 
-MIT
+This project is open-sourced software licensed under the [MIT License](LICENSE).
